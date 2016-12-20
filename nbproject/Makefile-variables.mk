@@ -9,19 +9,19 @@ CND_DISTDIR=dist
 # Debug configuration
 CND_PLATFORM_Debug=GNU-Linux
 CND_ARTIFACT_DIR_Debug=dist/Debug/GNU-Linux
-CND_ARTIFACT_NAME_Debug=lanekeeping1213
-CND_ARTIFACT_PATH_Debug=dist/Debug/GNU-Linux/lanekeeping1213
+CND_ARTIFACT_NAME_Debug=lanekeeping
+CND_ARTIFACT_PATH_Debug=dist/Debug/GNU-Linux/lanekeeping
 CND_PACKAGE_DIR_Debug=dist/Debug/GNU-Linux/package
-CND_PACKAGE_NAME_Debug=lanekeeping1213.tar
-CND_PACKAGE_PATH_Debug=dist/Debug/GNU-Linux/package/lanekeeping1213.tar
+CND_PACKAGE_NAME_Debug=lanekeeping.tar
+CND_PACKAGE_PATH_Debug=dist/Debug/GNU-Linux/package/lanekeeping.tar
 # Release configuration
 CND_PLATFORM_Release=GNU-Linux
 CND_ARTIFACT_DIR_Release=dist/Release/GNU-Linux
-CND_ARTIFACT_NAME_Release=lanekeeping1213
-CND_ARTIFACT_PATH_Release=dist/Release/GNU-Linux/lanekeeping1213
+CND_ARTIFACT_NAME_Release=lanekeeping
+CND_ARTIFACT_PATH_Release=dist/Release/GNU-Linux/lanekeeping
 CND_PACKAGE_DIR_Release=dist/Release/GNU-Linux/package
-CND_PACKAGE_NAME_Release=lanekeeping1213.tar
-CND_PACKAGE_PATH_Release=dist/Release/GNU-Linux/package/lanekeeping1213.tar
+CND_PACKAGE_NAME_Release=lanekeeping.tar
+CND_PACKAGE_PATH_Release=dist/Release/GNU-Linux/package/lanekeeping.tar
 #
 # include compiler specific variables
 #

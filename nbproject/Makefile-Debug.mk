@@ -66,21 +66,21 @@ LDLIBSOPTIONS=-lpthread `pkg-config --libs python-2.7` `pkg-config --libs SDL_im
 
 # Build Targets
 .build-conf: ${BUILD_SUBPROJECTS}
-	"${MAKE}"  -f nbproject/Makefile-${CND_CONF}.mk ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lanekeeping1213
+	"${MAKE}"  -f nbproject/Makefile-${CND_CONF}.mk ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lanekeeping
 
-${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lanekeeping1213: /usr/local/lib/libopencv_core.so
+${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lanekeeping: /usr/local/lib/libopencv_core.so
 
-${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lanekeeping1213: /usr/local/lib/libopencv_highgui.so
+${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lanekeeping: /usr/local/lib/libopencv_highgui.so
 
-${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lanekeeping1213: /usr/local/lib/libopencv_imgcodecs.so
+${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lanekeeping: /usr/local/lib/libopencv_imgcodecs.so
 
-${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lanekeeping1213: /usr/local/lib/libopencv_imgproc.so
+${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lanekeeping: /usr/local/lib/libopencv_imgproc.so
 
-${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lanekeeping1213: /usr/local/lib/libopencv_videoio.so
+${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lanekeeping: /usr/local/lib/libopencv_videoio.so
 
-${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lanekeeping1213: ${OBJECTFILES}
+${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lanekeeping: ${OBJECTFILES}
 	${MKDIR} -p ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}
-	${LINK.cc} -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lanekeeping1213 ${OBJECTFILES} ${LDLIBSOPTIONS} -lX11
+	${LINK.cc} -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lanekeeping ${OBJECTFILES} ${LDLIBSOPTIONS} -lX11
 
 ${OBJECTDIR}/Button.o: Button.cpp
 	${MKDIR} -p ${OBJECTDIR}
@@ -144,7 +144,7 @@ ${OBJECTDIR}/os.o: os.cpp
 .clean-conf: ${CLEAN_SUBPROJECTS}
 	${RM} -r ${CND_BUILDDIR}/${CND_CONF}
 	${RM} -r ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/libopencv_videoio.so ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/libopencv_highgui.so ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/libopencv_imgcodecs.so ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/libopencv_imgproc.so ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/libopencv_core.so
-	${RM} ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lanekeeping1213
+	${RM} ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/lanekeeping
 
 # Subprojects
 .clean-subprojects:
