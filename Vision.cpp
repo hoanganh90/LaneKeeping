@@ -666,9 +666,11 @@ int Vision::onVisionFrame_Rpi() {
 //    time_t timer_begin,timer_end;
 //    raspicam::RaspiCam_Cv Camera;
 //    cv::Mat image,resizeImg;
-//    Size size(640,480);
+//    //Size size(640,480);
 //    //set camera params
 //    Camera.set( CV_CAP_PROP_FORMAT, CV_8UC1 );
+//    Camera.set(CV_CAP_PROP_FRAME_WIDTH, 640);
+//    Camera.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
 //    //Open camera
 //    cout<<"Opening Camera..."<<endl;
 //    if (!Camera.open()) {cerr<<"Error opening the camera"<<endl;return -1;}
@@ -685,16 +687,15 @@ int Vision::onVisionFrame_Rpi() {
 //            cv::Point2f pc(image.cols/2,image.rows/2);
 //            cv::Mat r = cv::getRotationMatrix2D(pc, -180,1);
 //            cv::warpAffine(image,reverseImg, r,image.size());
-//             if(!reverseImg.data)
+//            if(!reverseImg.data)
 //            {
 //                    cout<<"ERROR: Cannot read a frame from Bebop"<<endl;
 //                    return -1;
 //            }
-//            else
-//            {
-//                resize(reverseImg,resizeImg,size);
-//            }
-//            cout<<"Come here while loop in vision thread\n"<<endl;
+////            else
+////            {
+////                resize(reverseImg,resizeImg,size);
+////            }//           cout<<"Come here while loop in vision thread\n"<<endl;
 //           
 //        // ++++++++++++++++++++++++++++++++++++++++
 //        // Process
