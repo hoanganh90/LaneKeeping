@@ -1611,7 +1611,7 @@ void MSAC::detectCenterLine(LineSegment tmpLine[2], LaneInfo &primaryLane) {
 	intersection(primaryLane.leftLine.intersection2Bottom,primaryLane.leftLine.intersection2Middle, primaryLane.rightLine.intersection2Bottom,primaryLane.rightLine.intersection2Middle,primaryLane.intersecLeftRight);
 
 }
-void MSAC::drawImage(cv::Mat image, std::vector<StoredLine> &leftLineROI1,std::vector<StoredLine> &rightLineROI1,std::vector<StoredLine> &lineROI2, cv::Point2f &C_0, cv::Point2f &C_1,	cv::Point2f &C_2, cv::Point &vanishingPoint1,cv::Point &vanishingPoint2, double count, int roi2Height,double roi2Ratio, int numLineROI1, POSITION position) {
+void MSAC::drawImage(cv::Mat image, std::vector<StoredLine> &leftLineROI1,std::vector<StoredLine> &rightLineROI1,std::vector<StoredLine> &lineROI2, cv::Point2f &C_0, cv::Point2f &C_1,	cv::Point2f &C_2, cv::Point2f &vanishingPoint1,cv::Point2f &vanishingPoint2, double count, int roi2Height,double roi2Ratio, int numLineROI1, POSITION position) {
 	int height;
 	height = image.rows / 2;
 	cv::Point2f centerCircle;
@@ -1783,14 +1783,14 @@ float MSAC::angleBetween2Lines(cv::Point2f pt1_Line1, cv::Point2f pt2_Line1, cv:
         //return value is angle in rad
 }
 
-double MSAC::estmateAnglenPosition(LaneInfo primaryLane, cv::Point2f &bp, cv::Point2f &refPoint,
+float MSAC::estmateAnglenPosition(LaneInfo primaryLane, cv::Point2f &bp, cv::Point2f &refPoint,
 		POSITION &pos) {
 	/*
 	 * Angle
 	 */
 	cv::Point2f tmpBp = cv::Point2f(bp.x, 0);
-	double angle = angleBetween2Lines(bp,refPoint,bp,tmpBp);
-        if(refPoint.x > tmpBp.x)
+	float angle = angleBetween2Lines(bp,refPoint,bp,tmpBp);
+        if(bp.x < primaryLane.centerLine.intersection2Bottom.x)
         {
             angle = angle * -1;
         }

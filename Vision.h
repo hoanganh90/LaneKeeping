@@ -70,8 +70,9 @@ struct commandData {
 
 typedef enum 
 {
-    StraightLane,
-    CurvedLane        
+    StraightLane,//control drone in a straight lane
+    CurvedLane,//control drone in a curved lane
+    MixedLane           //control drone in a mixed(both straight and curved) lane
 }
 LaneType;
 
@@ -99,15 +100,16 @@ public:
     int onVisionFrame();
     int onVisionFrame_Rpi();
     float calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2,cv::Point2f &centerCirle);
-    void sendCMD2StraightControl(POSITION pos, LaneInfo primaryLane, double angleHeading,cv::Point dronePos, double deltaTime);
+    void sendCMD2StraightControl(POSITION pos, LaneInfo primaryLane, float curvedRatio, float angleHeading, float angleOfRoad,cv::Point dronePos, double deltaTime);
     //Test sendCMDtoCurevedControl: 2016.12.10: not success
-    void sendCMD2CurvedControl(LaneInfo primarylane, double angleOfRoad,cv::Point dronePos, double deltaTime);
+    void sendCMD2StraightControl2(LaneInfo primaryLane, float curvedRatio, float angleHeading, float angleOfRoad,cv::Point dronePos, double deltaTime);
+    
+    void sendCMD2CurvedControl(LaneInfo primarylane, float curvedRatio, float angleHeading, float angleOfRoad,cv::Point dronePos, double deltaTime);
     //Test cendCMD2CurvedControl
-    void sendCMD2CurvedControl2(LaneInfo primarylane, double angleOfRoad,cv::Point dronePos, double deltaTime);
+    void sendCMD2CurvedControl2(LaneInfo primarylane, float curvedRatio, float angleHeading, float angleOfRoad,cv::Point dronePos, double deltaTime);
     double calculatePeriodOfTime(timeval startTime);
     bool logVisionProcessStep(int frameNum,double timeStep);
-    bool logVisionPosition(int frameNum,LaneInfo primarylane, std::string strPos, std::string navCMD, double angleHeading, double deltaTime,float velocityX,float velocityY);
-    
+    bool logVisionPosition(int frameNum,LaneInfo primarylane, std::string strPos, std::string navCMD,float curvedRatio, float angleHeading, float angleOfRoad, double deltaTime,float velocityX,float velocityY);
     void setLaneType(LaneType lane);
 private:
     pthread_t mVisionThread;
@@ -129,8 +131,6 @@ private:
 public:
     struct RoiData args[2];
     int mRoiDataIndex;
-    double angleHeading;
-    double angleOfRoad;
     //cong.anh
     bool bIsRotate;
     LaneType laneType;

@@ -191,7 +191,7 @@ top (int argc, char **argv)
         }
         else 
         {
-              fprintf(visionPositionFile, "Frame     C0           ANGLE        TIME    POS&CMD         RealCMD          VelocityX           VelocityY\n");
+              fprintf(visionPositionFile, "Frame     CurvedRATIO   AngleOfHeading  AngleOfRoad        TIME          POS&CMD         RealCMD          VelocityX           VelocityY\n");
          }
 	// Start vision thread
 	mVision = new Vision();   
@@ -204,8 +204,15 @@ top (int argc, char **argv)
                 mVision->setLaneType(CurvedLane);
                 cout<<"CURVED LANE"<<endl;
             }
+            else if (laneType == "2")
+            {
+                mVision->setLaneType(MixedLane);
+                cout<<"MIXED LANE"<<endl;
+            }
             else
+            {
                 cout<<"STRAIGHT LANE"<<endl;
+            }
         }
         mVision->start();
         

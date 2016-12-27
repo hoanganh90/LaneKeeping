@@ -348,8 +348,10 @@ void Vision::processImage( cv::Mat &imgGRAY)
         cv::Rect roi1Zone,roi2Zone;//roi1Zone + roi2Zone = original ROI
         //Vectors contain detected lines in ROI1 & ROI2 after RANSAC
         vector<StoredLine> lineROI1, lineROI2;
-	cv::Point vanishingPoint1, vanishingPoint2;
+	cv::Point2f vanishingPoint1, vanishingPoint2;
 	cv::Point2f topROI, centerBottom, centerTop;
+        float lengthC0C1 =0,lengthC1C2=0, curvedRatio = 0;
+        float laneThreshold = 0.1;
         MSAC msac;
         //processing ROI1
         std::vector<MatchedLine> cLines;
@@ -357,10 +359,8 @@ void Vision::processImage( cv::Mat &imgGRAY)
 	vector<StoredLine> rightSideROI1;
         pthread_t lineSegmentDetection[2];
         //Angle between C_0 - C_1 - C_2: Use in curved line
-	double angleOfRoad = 0;
-        cv::Point2f centerCircle;
-        float radius, acceleration;
-        double L1, theta, eta;
+	float angleOfRoad = 0;
+        float angleHeading = 0;
         
         //Drone position in center-bottom point of ROI1
         cv::Point2f dronePos;
@@ -560,7 +560,8 @@ void Vision::processImage( cv::Mat &imgGRAY)
         /*
 	 * Output: steering angle and the position Left | Right | Inside the Primary Lane
 	 */
-        angleHeading = msac.estmateAnglenPosition(primaryLane, bottomPoint,tmpC_1, position);
+        angleHeading = msac.estmateAnglenPosition(primaryLane, bottomPoint,tmpC_1, position);// in Degree
+        
         logVisionProcessStep(countFrame,timeStep);
         //Save vision input
         char imageFileName[128];
@@ -577,13 +578,30 @@ void Vision::processImage( cv::Mat &imgGRAY)
         double visionTime = calculatePeriodOfTime(visionBegin); //Average time for receiving a video frame to vision thread
         double deltaTime = visionTime; 
         //For curved line
-        angleOfRoad = msac.angleBetween2LinesAtan2(C_0,C_1,C_1,C_2);
+        angleOfRoad = msac.angleBetween2LinesAtan2(C_0,C_1,C_1,C_2);//In Degree
+        
+        lengthC0C1 = cv::norm(C_0 - vanishingPoint1);
+        lengthC1C2 = cv::norm(vanishingPoint1 - vanishingPoint2);
+        curvedRatio = lengthC1C2/lengthC0C1;
         if(laneType == StraightLane)
         {
-             sendCMD2StraightControl(position,primaryLane,angleOfRoad, bottomPoint,deltaTime);
+             sendCMD2StraightControl(position,primaryLane,curvedRatio, angleHeading, angleOfRoad, bottomPoint,deltaTime);
+        }
+        else if(laneType == CurvedLane)
+        {
+            sendCMD2CurvedControl2(primaryLane,curvedRatio, angleHeading, angleOfRoad,bottomPoint,deltaTime);
         }
         else
-            sendCMD2CurvedControl2(primaryLane,angleOfRoad,bottomPoint,deltaTime);
+        {
+            if(curvedRatio < laneThreshold)//Straight lane
+            {
+                sendCMD2StraightControl2(primaryLane,curvedRatio, angleHeading, angleOfRoad,bottomPoint,deltaTime);
+            }
+            else // Curved lane
+            {
+                 sendCMD2CurvedControl2(primaryLane,curvedRatio, angleHeading, angleOfRoad,bottomPoint,deltaTime);
+            }
+        }
         logVisionProcessStep(countFrame,timeStep);
         //isEndOfLinePosionLog = true;
        
@@ -753,7 +771,7 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
 //    int thresholdLeft, thresholdRight;
 //    thresholdLeft   = primaryLane.leftLine.intersection2Bottom.x + delta;
 //    thresholdRight  = primaryLane.leftLine.intersection2Bottom.x + delta*9;
- void Vision::sendCMD2StraightControl(POSITION pos, LaneInfo primarylane, double angleHeading,cv::Point dronePos, double deltaTime)
+ void Vision::sendCMD2StraightControl(POSITION pos, LaneInfo primarylane, float curvedRatio, float angleHeading, float angleOfRoad,cv::Point dronePos, double deltaTime)
  {
     cout<<"**STRAIGHT LINE control"<<endl;
     int delta = 0;
@@ -768,14 +786,14 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
         //if(lastPosition != position)
         mNavigationCommand = Right;
         printf("OUT LEFT %d => Command:%d\n",Left_Lane, Right);
-        logVisionPosition(countFrame,primarylane,"OUT LEFT", "GO=>RIGHT", angleHeading,deltaTime, velocityX,velocityY);
+        logVisionPosition(countFrame,primarylane,"OUT LEFT", "GO=>RIGHT", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
     }
     else if(pos == Right_Lane)
     {
         //if(lastPosition != position)
         mNavigationCommand = Left;
         printf("OUT Right %d => Command:%d\n",Right_Lane, Left);
-        logVisionPosition(countFrame,primarylane,"OUT RIGHT", "GO=>LEFT", angleHeading,deltaTime, velocityX,velocityY);
+        logVisionPosition(countFrame,primarylane,"OUT RIGHT", "GO=>LEFT", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
     }
     else// in Lane
     {
@@ -786,20 +804,20 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
             {
                 mNavigationCommand = Forward;
                 std::cout<<"*******Near LEFT, angle < 10degree => go Forward\n"<<angleHeading<<std::endl;
-                logVisionPosition(countFrame,primarylane,"NearLEFT&Forward", "Forward", angleHeading,deltaTime, velocityX,velocityY);
+                logVisionPosition(countFrame,primarylane,"NearLEFT&Forward", "Forward", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
             }
             else {
                 if(bIsDroneStopped)
                 {
                     mNavigationCommand = Clockwise;
                     std::cout<<"*******ESTIMATE LEFT & Drone is stopped => go Clockwise angle\n"<<angleHeading<<std::endl;
-                    logVisionPosition(countFrame,primarylane,"LEFT&Stopped", "Clockwise", angleHeading,deltaTime, velocityX,velocityY);
+                    logVisionPosition(countFrame,primarylane,"LEFT&Stopped", "Clockwise", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
                 }
                 else
                 {
                     mNavigationCommand = Stop;
                     std::cout<<"********In lane & Drone is moving \n"<<std::endl;
-                    logVisionPosition(countFrame,primarylane,"LEFT&Moving", "Stop", angleHeading,deltaTime, velocityX,velocityY);
+                    logVisionPosition(countFrame,primarylane,"LEFT&Moving", "Stop", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
                 }
             }
         }
@@ -809,7 +827,7 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
             {
                 mNavigationCommand = Forward;
                 std::cout<<"*******Near RIGHT, angle < 10degree => go Forward\n"<<angleHeading<<std::endl;
-                logVisionPosition(countFrame,primarylane,"NearRIGHT&Forward", "Forward", angleHeading,deltaTime, velocityX,velocityY);
+                logVisionPosition(countFrame,primarylane,"NearRIGHT&Forward", "Forward", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
             }
             else
             {
@@ -817,13 +835,13 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
                 {
                     mNavigationCommand = CounterClockwise;//LEFT //CounterClockwise
                     std::cout<<"********RIGHT threshold & Drone is stopped => go CounterClockwise Angle:\n"<<angleHeading<<std::endl;
-                    logVisionPosition(countFrame,primarylane,"RIGHT&Stopped", "CounterClockwise", angleHeading,deltaTime, velocityX,velocityY);
+                    logVisionPosition(countFrame,primarylane,"RIGHT&Stopped", "CounterClockwise", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
                 }
                 else
                 {
                     mNavigationCommand = Stop;
                     std::cout<<"********In lane & Drone is moving \n"<<std::endl;
-                    logVisionPosition(countFrame,primarylane,"RIGHT&Moving", "Stop", angleHeading,deltaTime, velocityX,velocityY);
+                    logVisionPosition(countFrame,primarylane,"RIGHT&Moving", "Stop", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
                 }
             }
         }
@@ -831,11 +849,101 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
         {
             std::cout<<"********CENTER => Forward**********\n"<<std::endl;
             mNavigationCommand = Forward;
-            logVisionPosition(countFrame,primarylane,"**CENTER**", "FORWARD", angleHeading,deltaTime, velocityX,velocityY);
+            logVisionPosition(countFrame,primarylane,"**CENTER**", "FORWARD", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
         }
     }
 }
- void Vision::sendCMD2CurvedControl(LaneInfo primarylane, double angleOfRoad,cv::Point dronePos, double deltaTime){
+ void Vision::sendCMD2StraightControl2( LaneInfo primarylane,float curvedRatio, float angleHeading, float angleOfRoad,cv::Point dronePos, double deltaTime)
+ {
+    cout<<"**STRAIGHT LINE control ver 2"<<endl;
+    int delta = 0;
+    delta = std::abs(primaryLane.leftLine.intersection2Bottom.x - primaryLane.rightLine.intersection2Bottom.x)/10;
+    float thresholdLeft = 0, thresholdRight = 0;
+    float angleThreshold = 20;
+    timeval timeRotateBegin; 
+    bool bIsOnceStop = false;
+    float rotateSpeed = 10; //10 deg/s
+    double timeStep,estimatedRotatedTime;
+    thresholdLeft   = primaryLane.leftLine.intersection2Bottom.x + delta;
+    thresholdRight  = primaryLane.leftLine.intersection2Bottom.x + delta*9;
+    if(abs(angleHeading) < angleThreshold)
+    {
+        if(dronePos.x < thresholdLeft)//Threshold Left lane => Go Right
+        {
+            mNavigationCommand = Right;
+            std::cout<<"****Drone is Near LEFT\n"<<std::endl;
+            logVisionPosition(countFrame,primarylane,"NearLEFT", "Right", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
+        }
+        else if(dronePos.x > thresholdRight)//Threshold Right Lane => Go LEFT
+        {
+            mNavigationCommand = Left;
+            std::cout<<"****Drone is Near RIGHT\n"<<std::endl;
+            logVisionPosition(countFrame,primarylane,"NearRIGHT", "LEFT", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);   
+        }
+        mNavigationCommand = Forward;//Forward
+        std::cout<<"****Drone is Forward | Angle:\n"<<angleHeading<<std::endl;
+        logVisionPosition(countFrame,primarylane,"InCENTER", "Forward", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
+    }
+    else if(angleHeading < angleThreshold * -1 ) // Heading vector is on the Left of mid-lane
+    {
+       while (true)
+       {
+            if(bIsOnceStop)
+            {
+                timeStep = calculatePeriodOfTime(timeRotateBegin);
+                if(timeStep > estimatedRotatedTime)
+                {
+                   // bIsOnceStop = false;
+                    mNavigationCommand = Forward;
+                    break;
+                }
+                mNavigationCommand = Clockwise;//Clockwise
+                std::cout<<"****Drone is HeadingLEFT => Clockwise Angle:\n"<<angleHeading<<std::endl;
+                logVisionPosition(countFrame,primarylane,"HeadingLEFT&Stopped", "Clockwise", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
+               // bIsRotate = true;
+            }
+            else
+            {
+                mNavigationCommand = Stop;
+                gettimeofday(&timeRotateBegin, 0);
+                estimatedRotatedTime = abs(angleHeading)/rotateSpeed;
+                std::cout<<"********Drone is moving - Heading LEFT \n"<<std::endl;
+                logVisionPosition(countFrame,primarylane,"HeadingLEFT&Moving", "Stop", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
+                bIsOnceStop = true;
+            }
+       }
+    }
+    else if(angleHeading > angleThreshold)// Heading vector is on the Right of mid-lane
+    {
+       while(true)
+       {
+            if(bIsOnceStop)
+            {
+                timeStep = calculatePeriodOfTime(timeRotateBegin);
+                if(timeStep > estimatedRotatedTime)
+                {
+                    //bIsOnceStop = false;
+                    mNavigationCommand = Forward;
+                    break;
+                }
+                mNavigationCommand = CounterClockwise;//Clockwise
+                std::cout<<"****Drone is HeadingRight => CounterClockwise Angle:\n"<<angleHeading<<std::endl;
+                logVisionPosition(countFrame,primarylane,"HeadingRight&Stopped", "CounterClockwise", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
+               // bIsRotate = true;
+            }
+            else
+            {
+                mNavigationCommand = Stop;
+                gettimeofday(&timeRotateBegin, 0);
+                estimatedRotatedTime = abs(angleHeading)/rotateSpeed;
+                std::cout<<"********Drone is moving - OUT LEFT \n"<<std::endl;
+                logVisionPosition(countFrame,primarylane,"HeadingRight&Moving", "Stop", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
+                bIsOnceStop = true;
+            }
+       }
+    }
+}
+ void Vision::sendCMD2CurvedControl(LaneInfo primarylane, float curvedRatio, float angleHeading, float angleOfRoad,cv::Point dronePos, double deltaTime){
     cout<<"**CURVED LINE control"<<endl;
     int delta = 0;
     delta = std::abs(primarylane.leftLine.intersection2Bottom.x - primarylane.rightLine.intersection2Bottom.x)/10;
@@ -848,28 +956,28 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
     {
         mNavigationCommand = Forward;
         std::cout<<"*******Near LEFT => go Forward\n"<<std::endl;
-        logVisionPosition(countFrame,primarylane,"NearLEFT>Forward", "Forward", angleOfRoad,deltaTime, velocityX,velocityY);
+        logVisionPosition(countFrame,primarylane,"NearLEFT>Forward", "Forward", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
     }
     else if(dronePos.x > thresholdRight){
         if(bIsDroneStopped)
         {
             mNavigationCommand = CounterClockwise;//CounterClockwise
             std::cout<<"****RIGHT threshold & Drone is stopped => CounterClockwise Angle:\n"<<angleOfRoad<<std::endl;
-            logVisionPosition(countFrame,primarylane,"RIGHT&Stopped", "CounterClockwise", angleOfRoad,deltaTime, velocityX,velocityY);
+            logVisionPosition(countFrame,primarylane,"RIGHT&Stopped", "CounterClockwise", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
             bIsRotate = true;
         }
         else
         {
             mNavigationCommand = Stop;
             std::cout<<"********In lane & Drone is moving \n"<<std::endl;
-            logVisionPosition(countFrame,primarylane,"RIGHT&Moving", "Stop", angleOfRoad,deltaTime, velocityX,velocityY);
+            logVisionPosition(countFrame,primarylane,"RIGHT&Moving", "Stop", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
         }  
     }
     else
     {
         std::cout<<"****CENTER => Forward**********\n"<<std::endl;
         mNavigationCommand = Forward;
-        logVisionPosition(countFrame,primarylane,"**CENTER**", "FORWARD", angleOfRoad,deltaTime, velocityX,velocityY);
+        logVisionPosition(countFrame,primarylane,"**CENTER**", "FORWARD", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
     }
     if(bIsRotate)
     {
@@ -877,12 +985,12 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
         {
             std::cout<<"****ROTATE=> Forward**********\n"<<std::endl;
             mNavigationCommand = Forward;
-            logVisionPosition(countFrame,primarylane,"*ROTATE*", "FORWARD", angleOfRoad,deltaTime, velocityX,velocityY);
+            logVisionPosition(countFrame,primarylane,"*ROTATE*", "FORWARD", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
             bIsRotate = false;
         }
     }
  }
- void Vision::sendCMD2CurvedControl2(LaneInfo primarylane, double angleOfRoad,cv::Point dronePos, double deltaTime){
+ void Vision::sendCMD2CurvedControl2(LaneInfo primarylane,float curvedRatio, float angleHeading, float angleOfRoad,cv::Point dronePos, double deltaTime){
     cout<<"**CURVED LINE control ver 2"<<endl;
     int minThreshold = 20;
     int maxThreshold = 45;
@@ -897,7 +1005,7 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
     {
         mNavigationCommand = Forward;//Forward
         std::cout<<"****Drone is Forward=> Forward Angle:\n"<<angleOfRoad<<std::endl;
-        logVisionPosition(countFrame,primarylane,"InMinThreshold", "Forward", angleOfRoad,deltaTime, velocityX,velocityY);
+        logVisionPosition(countFrame,primarylane,"InMinThreshold", "Forward", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
     }
     else if((angleOfRoad < minThreshold * -1 && angleOfRoad > maxThreshold * -1)|| angleOfRoad > minThreshold) // - 15 > angle > - 35 => CCW
     {
@@ -914,7 +1022,7 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
                 }
                 mNavigationCommand = CounterClockwise;//CounterClockwise
                 std::cout<<"****Drone is HeadingLEFT => CounterClockwise Angle:\n"<<angleOfRoad<<std::endl;
-                logVisionPosition(countFrame,primarylane,"HeadingLEFT&Stopped", "CounterClockwise", angleOfRoad,deltaTime, velocityX,velocityY);
+                logVisionPosition(countFrame,primarylane,"HeadingLEFT&Stopped", "CounterClockwise", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
                // bIsRotate = true;
             }
             else
@@ -923,7 +1031,7 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
                 gettimeofday(&timeRotateBegin, 0);
                 estimatedRotatedTime = abs(maxThreshold - angleOfRoad)/rotateSpeed;
                 std::cout<<"********Drone is moving - Heading LEFT \n"<<std::endl;
-                logVisionPosition(countFrame,primarylane,"HeadingLEFT&Moving", "Stop", angleOfRoad,deltaTime, velocityX,velocityY);
+                logVisionPosition(countFrame,primarylane,"HeadingLEFT&Moving", "Stop", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
                 bIsOnceStop = true;
             }
        }
@@ -943,7 +1051,7 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
                 }
                 mNavigationCommand = Clockwise;//Clockwise
                 std::cout<<"****Drone is OUT LEFT => Clockwise Angle:\n"<<angleOfRoad<<std::endl;
-                logVisionPosition(countFrame,primarylane,"OUT-LEFT&Stopped", "Clockwise", angleOfRoad,deltaTime, velocityX,velocityY);
+                logVisionPosition(countFrame,primarylane,"OUT-LEFT&Stopped", "Clockwise", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
                // bIsRotate = true;
             }
             else
@@ -952,7 +1060,7 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
                 gettimeofday(&timeRotateBegin, 0);
                 estimatedRotatedTime = (angleOfRoad - minThreshold)/rotateSpeed;
                 std::cout<<"********Drone is moving - OUT LEFT \n"<<std::endl;
-                logVisionPosition(countFrame,primarylane,"OUT-LEFT&Moving", "Stop", angleOfRoad,deltaTime, velocityX,velocityY);
+                logVisionPosition(countFrame,primarylane,"OUT-LEFT&Moving", "Stop", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
                 bIsOnceStop = true;
             }
        }
@@ -997,7 +1105,7 @@ bool Vision::logVisionProcessStep(int frameNum,double timeStep)
     }
     return true;
 }
-bool Vision::logVisionPosition(int frameNum,LaneInfo primarylane, std::string strPos, std::string navCMD, double angleHeading, double autoTime, float velX, float velY)
+bool Vision::logVisionPosition(int frameNum,LaneInfo primarylane, std::string strPos, std::string navCMD,float curvedRatio, float angleHeading, float angleOfRoad, double autoTime, float velX, float velY)
 {	
     if(visionPositionFile == NULL)
     {
@@ -1014,8 +1122,8 @@ bool Vision::logVisionPosition(int frameNum,LaneInfo primarylane, std::string st
 
     if(visionPositionFile != NULL)
     {		
-        //                                                                           1.FrameNO     2.C0                                3.Angle   4. TimeStep  5.Position&Command   6. Real CMD     7.VelocityX   8.VelocityY                      
-         fprintf(visionPositionFile, "%d      %f  %f  %f  %s          %s        %f  %f\n",frameNum,  primarylane.centerLine.intersection2Bottom.x,angleHeading,autoTime, strPos.c_str(),navCMD.c_str(),velX,velY);
+        //                                                                                                          1.FrameNO   2. curvedRatio  3.AngleHeading    4.AngleOfRoad          5. TimeStep  6.Position&Command   7. Real CMD     8.VelocityX   9.VelocityY                      
+         fprintf(visionPositionFile, "%d        %f      %f      %f      %f      %s      %s      %f      %f\n",frameNum,curvedRatio,angleHeading, angleOfRoad,autoTime, strPos.c_str(),navCMD.c_str(),velX,velY);
        fflush(visionPositionFile);
     }
     return true;

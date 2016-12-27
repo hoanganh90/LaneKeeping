@@ -101,8 +101,8 @@ public:
        void drawImage(cv::Mat image, std::vector<StoredLine> &leftLineROI1,
 			std::vector<StoredLine> &rightLineROI1,
 			std::vector<StoredLine> &lineROI2, cv::Point2f &C_0,
-			cv::Point2f &C_1, cv::Point2f &C_2, cv::Point &vanishingPoint1,
-			cv::Point &vanishingPoint2, double count,int roi2Height,double roi2Ratio, int numLineROI1, POSITION position);
+			cv::Point2f &C_1, cv::Point2f &C_2, cv::Point2f &vanishingPoint1,
+			cv::Point2f &vanishingPoint2, double count,int roi2Height,double roi2Ratio, int numLineROI1, POSITION position);
 	/*void laneMatching(std::vector<std::vector<cv::Point> >&currentLines,
 	 std::vector<std::vector<cv::Point> >&storedLines,
 	 std::vector<int>&counter, cv::Point &bottomPoint);*/
@@ -141,7 +141,7 @@ public:
 			cv::Point &bottomPoint);
 	
 	float angleBetween2Lines(cv::Point2f pt1_Line1, cv::Point2f pt2_Line1, cv::Point2f pt1_Line2, cv::Point2f pt2_Line2);
-	double estmateAnglenPosition(LaneInfo primaryLane, cv::Point2f &bp, cv::Point2f &refPoint,
+	float estmateAnglenPosition(LaneInfo primaryLane, cv::Point2f &bp, cv::Point2f &refPoint,
 			POSITION &position);
         //cong.anh 2016.09.11
         void dilation(cv::Mat &src, cv::Mat &dst, int dilation_element,
