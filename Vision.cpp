@@ -78,10 +78,10 @@ void Vision::run()
     //     Start Camera
     //----------------------------
     //For Raspberry
-    onVisionFrame_Rpi();
+    //onVisionFrame_Rpi();
     
     //For Linux laptop
-   //onVisionFrame();
+   onVisionFrame();
    
 
 }
@@ -721,7 +721,7 @@ int Vision::onVisionFrame_Rpi() {
 //            timeStep = calculatePeriodOfTime(timeStepBegin);
 //            //Save execution time of convert2GrayScale
 //            logVisionProcessStep(countFrame,timeStep);       
-//            processImage(resizeImg);
+//            processImage(reverseImg);
 //            countFrame++;
 //        }
 //    }
