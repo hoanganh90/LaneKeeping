@@ -238,7 +238,7 @@ void UDP_Connection::run()
                                 }
                                 else 
                                 {
-                                    if( period > 0.5)
+                                    if( period > 0.2)//Send command to Drone 5Hz
                                     {
                                         sendControlCommand(mNavigationCommand);
                                         gettimeofday(&startTime, 0);
