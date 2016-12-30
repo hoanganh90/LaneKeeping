@@ -19,11 +19,12 @@ Vision::Vision() {
     bIsRotate = false;
    // isEndOfLinePosionLog = false;
     isAutoMode = false;
+    isLandModeClicked = false;
     C_0 = cv::Point2f(0,0);
     C_1 = cv::Point2f(0,0);
     C_2 = cv::Point2f(0,0);
-    
     laneType = StraightLane;
+    bDataIsNotCopied = true;
 }
 
 Vision::~Vision() {
@@ -386,6 +387,7 @@ void Vision::processImage( cv::Mat &imgGRAY)
         rightSideROI1.clear();
         
         //1. ROI Selection
+      
         gettimeofday(&timeStepBegin, 0);      
         //Original ROI
         cv::Rect rect(0, imgGRAY.rows * 0.25, imgGRAY.cols, imgGRAY.rows * 0.75);
@@ -410,7 +412,7 @@ void Vision::processImage( cv::Mat &imgGRAY)
 	//|
 	//|
 	//|-----------------------------------
-         //Adaptive ROI
+        //1.Adaptive ROI
        if (!isFirstFrameDetected) {
             //Is first frame : roiRatio = 0.5
             roi2Ratio = 0.5;
@@ -452,8 +454,9 @@ void Vision::processImage( cv::Mat &imgGRAY)
         subROI[1] = imageROI(roi2Zone);
    
         timeStep = calculatePeriodOfTime(timeStepBegin);
-        //Save execution time of Adaptive ROI
-        logVisionProcessStep(countFrame,timeStep);       
+        //Column 1.Save execution time of Adaptive ROI
+        //(int frameNum,double timeStep, bool isFrameDone, bool isFrameNum);
+        logVisionProcessStep(countFrame,timeStep,false, false);   
         gettimeofday(&timeStepBegin, 0);
         
         
@@ -532,12 +535,16 @@ void Vision::processImage( cv::Mat &imgGRAY)
                                        || tmpC_2.x < 0 || tmpC_2.y < 0 || tmpC_2.y > subROI[1].rows)
         {   
             cout << "No acceptable. Go to escape" << endl;
+             //logVisionProcessStep(int frameNum,double timeStep, bool isFrameDone, bool isFrameNum);
+            logVisionProcessStep(countFrame,timeStep,true, false);   
             isEscaped = true;
             return;
         }
-         timeStep = calculatePeriodOfTime(timeStepBegin);
-        //Save execution time of Processing lines in ROI1
-        logVisionProcessStep(countFrame,timeStep);
+        timeStep = calculatePeriodOfTime(timeStepBegin);
+        //Column 2.Save execution time of Processing lines in ROI1 - Thread
+        //(int frameNum,double timeStep, bool isFrameDone, bool isFrameNum);
+        logVisionProcessStep(countFrame,timeStep,false, false);   
+        //3. Processing line
         gettimeofday(&timeStepBegin, 0);
 //	cout << "Number of LEFT LINE BEFORE = " << leftSideROI1.size() << endl;
 	filterLineSegment(leftSideROI1);
@@ -547,23 +554,19 @@ void Vision::processImage( cv::Mat &imgGRAY)
 //	cout << "Number of LINE AFTER = " << rightSideROI1.size() << endl;
         
 	//2016.11.20: Detect primary lane
+        // Detect center line of the primary lane also
 	isFoundPrimaryLane = msac.detectPrimaryLane(leftSideROI1, rightSideROI1, centerBottom,centerTop, primaryLane);
         if(isFoundPrimaryLane == -1)
             return;
         tmpC_0 = centerBottom;
         tmpC_1 = centerTop;  
-        timeStep = calculatePeriodOfTime(timeStepBegin);
-        //Save execution time of EstimateMidRoad
-        logVisionProcessStep(countFrame,timeStep);
-        gettimeofday(&timeStepBegin, 0);
+      
         //Save execution time of Estimating the mide line of road
         /*
 	 * Output: steering angle and the position Left | Right | Inside the Primary Lane
 	 */
         angleHeading = msac.estmateAnglenPosition(primaryLane, bottomPoint,tmpC_1, position);// in Degree
-        
-        logVisionProcessStep(countFrame,timeStep);
-        //Save vision input
+         
         char imageFileName[128];
         snprintf(imageFileName, sizeof(imageFileName), "SaveData/OriginalFrame/Image%04d.jpg", countFrame);
         imwrite(imageFileName, imageROI);
@@ -573,13 +576,17 @@ void Vision::processImage( cv::Mat &imgGRAY)
         C_1 = tmpC_1;
         C_2 = tmpC_2;
         gettimeofday(&timeStepBegin, 0);
-        timeStep = calculatePeriodOfTime(timeStepBegin);
-        //Save execution time of Output control commands
+        
+        
         double visionTime = calculatePeriodOfTime(visionBegin); //Average time for receiving a video frame to vision thread
         double deltaTime = visionTime; 
         //For curved line
         angleOfRoad = msac.angleBetween2LinesAtan2(C_0,C_1,C_1,C_2);//In Degree
         
+        timeStep = calculatePeriodOfTime(timeStepBegin);
+        //column 3: Save processing line (int frameNum,double timeStep, bool isFrameDone, bool isFrameNum);
+        logVisionProcessStep(countFrame,timeStep,false, false);   
+        gettimeofday(&timeStepBegin, 0);
         lengthC0C1 = cv::norm(C_0 - vanishingPoint1);
         lengthC1C2 = cv::norm(vanishingPoint1 - vanishingPoint2);
         curvedRatio = lengthC1C2/lengthC0C1;
@@ -602,11 +609,13 @@ void Vision::processImage( cv::Mat &imgGRAY)
                  sendCMD2CurvedControl2(primaryLane,curvedRatio, angleHeading, angleOfRoad,bottomPoint,deltaTime);
             }
         }
-        logVisionProcessStep(countFrame,timeStep);
-        //isEndOfLinePosionLog = true;
-       
-        gettimeofday(&timeStepBegin, 0);
-   
+        //Save execution time of Output control commands
+        timeStep = calculatePeriodOfTime(timeStepBegin);
+        //(int frameNum,double timeStep, bool isFrameDone, bool isFrameNum);
+        logVisionProcessStep(countFrame,timeStep,false, false);   
+
+        //Fishing loging for 1 frame
+        logVisionProcessStep(countFrame,0,true, false);   
        
 }
 int Vision::onVisionFrame() {
@@ -619,14 +628,19 @@ int Vision::onVisionFrame() {
     Size size(640, 480);	//the dst image size 640x480
     if(!capture.isOpened())
           return -1;
+    capture.set(CV_CAP_PROP_FRAME_WIDTH,640);
+    capture.set(CV_CAP_PROP_FRAME_HEIGHT,480);
+    capture.set(CV_CAP_PROP_FORMAT,CV_8UC1);
        
     //----------------------------
     //     Vision Processing
     //----------------------------
     while(!bShouldExit)
     {
+        //Start recording log: Write frame number first
+        logVisionProcessStep(countFrame,timeStep,false, true);     
         //compute time to covert2GrayScale
-        
+        gettimeofday(&timeStepBegin, 0);  
         capture>>imageFrame;
 //        transpose(imageFrame, imageFrame);
 //        flip(imageFrame, imageFrame,-1);
@@ -641,37 +655,72 @@ int Vision::onVisionFrame() {
 	}
 	else
 	{
-            //Resize to 640x480
-            resize(imageFrame, resizeFrame, size);
-            imshow("Input Image",resizeFrame);
-              char q = (char) waitKey(1);
-
+            //imwrite("Input.jpg", imageFrame);
+            imshow("Input Image",imageFrame);
+            char q = (char) waitKey(1);
             if (q == 27) {
                     printf("\nStopped by user request\n");
                     break;
             }
 	}
-    
         cout<<"Come here while loop in vision thread"<<endl;
         //cong.anh
         if(isAutoMode)
         {
             cv::Mat inputGray;
             int mode = MODE_LS;
-            cv::cvtColor(resizeFrame, inputGray, CV_BGR2GRAY);	//cong.anh Now the output is Gray
-            
        
         // ++++++++++++++++++++++++++++++++++++++++
         // Process
         // ++++++++++++++++++++++++++++++++++++++++
-        
-       
-            gettimeofday(&timeStepBegin, 0);  
+
             timeStep = calculatePeriodOfTime(timeStepBegin);
             //Save execution time of convert2GrayScale
-             logVisionProcessStep(countFrame,timeStep);       
-            processImage( inputGray);
+            //logVisionProcessStep(int frameNum,double timeStep, bool isFrameDone, bool isFrameNum);
+            logVisionProcessStep(countFrame,timeStep,false, false);  
+            processImage( imageFrame);
             countFrame++;
+        }
+        if(isLandModeClicked&&bDataIsNotCopied)
+        {
+            int num;
+            FILE *fptr;
+            fptr = fopen("Result/count.txt", "a+");
+            if (fptr == NULL) {
+                    printf("Error: Cannot open count.txt!");
+                    exit(1);
+            }
+            //Read file
+            struct stat stCheckSize;
+            if (stat("Result/count.txt", &stCheckSize) != 0) {
+                    return EXIT_FAILURE;
+            }
+            fprintf(stdout, "file size: %zd\n", stCheckSize.st_size);
+            if(stCheckSize.st_size == 0)
+            {
+                num = 0;
+            }
+            else
+                fscanf(fptr, "%d", &num);
+            num++;
+            //Delete old number:
+            fclose(fptr);
+            fptr = NULL;
+            //Write file
+            fptr = fopen("Result/count.txt", "w");
+            fprintf(fptr, "%d", num);
+            //Close file
+            fclose(fptr);
+            std::string logStr = "Result/" + std::to_string(num);	
+            std::string src = "SaveData/";
+            std::string tmpStr = "cp -R "+ src + " " + logStr;
+            struct stat stCopy = { 0 };
+            if (stat(logStr.c_str(), &stCopy) == -1) {
+                    mkdir(logStr.c_str(), 0700);
+                    system(tmpStr.c_str());
+
+            }
+            bDataIsNotCopied = false;  
         }
        
    }
@@ -724,7 +773,48 @@ int Vision::onVisionFrame_Rpi() {
 //            processImage(reverseImg);
 //            countFrame++;
 //        }
-//    }
+//         if(isLandModeClicked&&bDataIsNotCopied)
+//        {
+//            int num;
+//            FILE *fptr;
+//            fptr = fopen("Result/count.txt", "a+");
+//            if (fptr == NULL) {
+//                    printf("Error: Cannot open count.txt!");
+//                    exit(1);
+//            }
+//            //Read file
+//            struct stat stCheckSize;
+//            if (stat("Result/count.txt", &stCheckSize) != 0) {
+//                    return EXIT_FAILURE;
+//            }
+//            fprintf(stdout, "file size: %zd\n", stCheckSize.st_size);
+//            if(stCheckSize.st_size == 0)
+//            {
+//                num = 0;
+//            }
+//            else
+//                fscanf(fptr, "%d", &num);
+//            num++;
+//            //Delete old number:
+//            fclose(fptr);
+//            fptr = NULL;
+//            //Write file
+//            fptr = fopen("Result/count.txt", "w");
+//            fprintf(fptr, "%d", num);
+//            //Close file
+//            fclose(fptr);
+//            std::string logStr = "Result/" + std::to_string(num);	
+//            std::string src = "SaveData/";
+//            std::string tmpStr = "cp -R "+ src + " " + logStr;
+//            struct stat stCopy = { 0 };
+//            if (stat(logStr.c_str(), &stCopy) == -1) {
+//                    mkdir(logStr.c_str(), 0700);
+//                    system(tmpStr.c_str());
+//
+//            }
+//            bDataIsNotCopied = false;  
+//        }
+//    
 //    return 0;
 //    cout<<"Stop camera..."<<endl;
 //    Camera.release();
@@ -863,9 +953,9 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
     float realLaneSize = 1.2;
     float laneVision = 0, offsetLeft = 0;
     timeval timeRotateBegin, timeMovingBegin; 
-    bool bIsOnceStop = false;
+    bool bIsOnceStop = false, bIsPrinted = false;
     float rotateSpeed = 10; //10 deg/s
-    float droneMovingSpeed = 1; // 1 m/s
+    float droneMovingSpeed = 0.5; // 0.5 m/s
     double timeStep,estimatedRotatedTime,estimatedMovingTime;
     thresholdLeft   = primaryLane.leftLine.intersection2Bottom.x + delta*2;
     thresholdRight  = primaryLane.leftLine.intersection2Bottom.x + delta*8;
@@ -887,8 +977,11 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
                     }
                     mNavigationCommand = Right;
                     std::cout<<"****Drone is Straight LEFT\n"<<std::endl;
-                    logVisionPosition(countFrame,primarylane,"StraightLEFT", "Right", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
-                 
+                    if(!bIsPrinted)
+                    {
+                        logVisionPosition(countFrame,primarylane,"StraightLEFT", "Right", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
+                        bIsPrinted = true;
+                    }
                 }
                 else
                 {
@@ -915,8 +1008,11 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
                     }
                     mNavigationCommand = Left;
                     std::cout<<"****Drone is Straight RIGHT\n"<<std::endl;
-                    logVisionPosition(countFrame,primarylane,"StraightRIGHT", "Left", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
-                  
+                    if(!bIsPrinted)
+                    {
+                        logVisionPosition(countFrame,primarylane,"StraightRIGHT", "Left", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
+                        bIsPrinted = true;
+                    }
                 }
                 else
                 {
@@ -948,8 +1044,11 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
                 }
                 mNavigationCommand = Clockwise;//Clockwise
                 std::cout<<"****Drone is StraightLEFT => Clockwise Angle:\n"<<angleHeading<<std::endl;
-                logVisionPosition(countFrame,primarylane,"StraightLEFT&Stopped", "Clockwise", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
-               // bIsRotate = true;
+                if(!bIsPrinted)
+                {
+                    logVisionPosition(countFrame,primarylane,"StraightLEFT&Stopped", "Clockwise", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
+                    bIsPrinted = true;
+                }
             }
             else
             {
@@ -977,8 +1076,11 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
                 }
                 mNavigationCommand = CounterClockwise;//Clockwise
                 std::cout<<"****Drone is StraightRight => CounterClockwise Angle:\n"<<angleHeading<<std::endl;
-                logVisionPosition(countFrame,primarylane,"StraightRight&Stopped", "CounterClockwise", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
-               // bIsRotate = true;
+                if(!bIsPrinted)
+                {
+                    logVisionPosition(countFrame,primarylane,"StraightRight&Stopped", "CounterClockwise", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
+                    bIsPrinted = true;
+                }
             }
             else
             {
@@ -1045,7 +1147,7 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
     int maxThreshold = 45;
     int averageThreshold = (minThreshold + maxThreshold)/2;
     timeval timeRotateBegin; 
-    bool bIsOnceStop = false;
+    bool bIsOnceStop = false,bIsPrinted = false;
     float rotateSpeed = 10; //10 deg/s
     double timeStep,estimatedRotatedTime;
     
@@ -1071,8 +1173,11 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
                 }
                 mNavigationCommand = CounterClockwise;//CounterClockwise
                 std::cout<<"****Drone is CurvedLEFT => CounterClockwise Angle:\n"<<angleOfRoad<<std::endl;
-                logVisionPosition(countFrame,primarylane,"CurvedLEFT&Stopped", "CounterClockwise", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
-               // bIsRotate = true;
+                if(!bIsPrinted)
+                {
+                    logVisionPosition(countFrame,primarylane,"CurvedLEFT&Stopped", "CounterClockwise", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
+                    bIsPrinted = true;
+                }
             }
             else
             {
@@ -1100,8 +1205,11 @@ float Vision::calculateCurvedLine(cv::Point2f C0, cv::Point2f C1, cv::Point2f C2
                 }
                 mNavigationCommand = Clockwise;//Clockwise
                 std::cout<<"****Drone is Curved LEFT => Clockwise Angle:\n"<<angleOfRoad<<std::endl;
-                logVisionPosition(countFrame,primarylane,"CurvedLEFT&Stopped", "Clockwise", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
-               // bIsRotate = true;
+                if(!bIsPrinted)
+                {
+                    logVisionPosition(countFrame,primarylane,"CurvedLEFT&Stopped", "Clockwise", curvedRatio, angleHeading, angleOfRoad,deltaTime, velocityX,velocityY);
+                    bIsPrinted = true;
+                }
             }
             else
             {
@@ -1123,7 +1231,7 @@ double Vision::calculatePeriodOfTime(timeval startTime) //return ms
 	gettimeofday(&currentTime, 0);
 	return (currentTime.tv_sec + 0.000001*currentTime.tv_usec - startTime.tv_sec - 0.000001*startTime.tv_usec)*1000;
 }
-bool Vision::logVisionProcessStep(int frameNum,double timeStep)
+bool Vision::logVisionProcessStep(int frameNum,double timeStep, bool isFrameDone, bool isFrameNum)
 {	
     if(visionProcessFile == NULL)
     {
@@ -1139,17 +1247,32 @@ bool Vision::logVisionProcessStep(int frameNum,double timeStep)
     }
 
     if(visionProcessFile != NULL)
-    {		
-        
-        if(timeStep > 0)
+    {	
+        if(isFrameNum)
         {
-            fprintf(visionProcessFile, "    %f", timeStep);
+            fprintf(visionProcessFile, "%d  ",frameNum);
+            
         }
         else
         {
-            fprintf(visionProcessFile, "    \n");
-            fprintf(visionProcessFile, "%d",frameNum);
+            if(!isFrameDone)
+            {
+                fprintf(visionProcessFile, "        %6f", timeStep);
+            }
+            else
+                 fprintf(visionProcessFile, "\n");
         }
+        
+//        if(timeStep > 0)
+//        {
+//            fprintf(visionProcessFile, "    %f", timeStep);
+//        }
+//        else
+//        {
+//            fprintf(visionProcessFile, "    \n");
+//            fprintf(visionProcessFile, "%d",frameNum);
+//           
+//        }
         fflush(visionProcessFile);
     }
     return true;

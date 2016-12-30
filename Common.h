@@ -188,5 +188,6 @@ EXTERN cv::Point2f C_0;
 EXTERN cv::Point2f C_1;
 EXTERN cv::Point2f C_2;
 EXTERN volatile bool isAutoMode;
+EXTERN volatile bool isLandModeClicked;
 EXTERN timeval visionBegin;
 #endif /* COMMON_H_ */

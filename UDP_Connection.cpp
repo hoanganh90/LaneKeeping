@@ -96,19 +96,19 @@ void UDP_Connection::writeLog(NAV_CMD_TYPE navCommand, double time)
     switch(navCommand)
     {
         case Forward:
-            fprintf(fileSpeed, "%.6f    0.50    0.00\n", time);
+            fprintf(fileSpeed, "%.6f    0.30    0.00\n", time);
             fflush(fileSpeed);
             break;
         case Backward:
-            fprintf(fileSpeed, "%.6f    -0.5    0.00\n", time);
+            fprintf(fileSpeed, "%.6f    -0.3    0.00\n", time);
             fflush(fileSpeed);
             break;
         case Left:
-            fprintf(fileSpeed, "%.6f    0.00    -0.5\n", time);
+            fprintf(fileSpeed, "%.6f    0.00    -0.3\n", time);
             fflush(fileSpeed);
             break;
         case Right:
-            fprintf(fileSpeed, "%.6f    0.00    0.50\n", time);
+            fprintf(fileSpeed, "%.6f    0.00    0.30\n", time);
             fflush(fileSpeed);
             break;
         default:

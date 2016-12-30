@@ -56,6 +56,7 @@
 #include "mavlink_control.h"
 #include <sys/stat.h>
 #include <X11/Xlib.h>
+
 // ------------------------------------------------------------------------------
 // Variables
 // ------------------------------------------------------------------------------
@@ -69,6 +70,7 @@ volatile double velocity;
 volatile double timeStep;// Save time value of each step
 volatile bool bIsDroneStopped;
 volatile bool isAutoMode;
+volatile bool isLandModeClicked;
 timeval timeStepBegin; // Calculate time step for Canndy detection, Hough line, Vanishing , Tracking, SendCMD2Control
 timeval visionBegin;
 FILE *visionProcessFile;
@@ -132,6 +134,9 @@ top (int argc, char **argv)
 	udpConnection = new UDP_Connection(mControl);
 	udpConnection->start();
 
+	
+	
+        
         //Create Vision Folders
          struct stat st = {0};
         if (stat(SAVE_ORIGINAL_PATH, &st) == -1)
@@ -171,7 +176,7 @@ top (int argc, char **argv)
         }
         else 
         {
-            fprintf(visionProcessFile, "Frame    Convert2Gray    AdaptiveROI LineDetection   LaneTracking    EstimateMidRoad SendCMD\n");
+            fprintf(visionProcessFile, "Frame       AdaptiveROI     LineDetection       Processing     SendCMD\n");
         }
         //Create Vision Position file
          struct stat st_position_data = {0};
@@ -271,7 +276,6 @@ parse_commandline(int argc, char **argv, char *&uart_name, int &baudrate)
 	// Done!
 	return;
 }
-
 
 // ------------------------------------------------------------------------------
 //   Quit Signal Handler

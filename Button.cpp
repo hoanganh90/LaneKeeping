@@ -136,6 +136,7 @@ bool Button::handle_events(SDL_Event event)
                 else if (delegateCMD == Land)
                 {
                     isAutoMode = false;
+                    isLandModeClicked = true;
                     mNavigationCommand = delegateCMD;
                 }
                 //
