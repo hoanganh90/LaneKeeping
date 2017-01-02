@@ -1642,8 +1642,8 @@ void MSAC::drawImage(cv::Mat image, std::vector<StoredLine> &leftLineROI1,std::v
 //		line(image, pt1, pt2, CV_RGB(0, 0, 0), 2);
 //	}
 	//Draw C_0 - C_1 - C_2
-	C_0.y = C_0.y + roi2Height;
-	C_1.y = C_1.y + roi2Height;
+	//C_0.y = C_0.y + roi2Height;
+	//C_1.y = C_1.y + roi2Height;
 	line(image, C_0, C_1, CV_RGB(0, 0, 0), 2);
 	line(image, C_1, C_2, CV_RGB(0, 0, 0), 2);
 
