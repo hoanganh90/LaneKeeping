@@ -108,7 +108,7 @@ public:
     //Test cendCMD2CurvedControl
     void sendCMD2CurvedControl2(LaneInfo primarylane, float curvedRatio, float angleHeading, float angleOfRoad,cv::Point dronePos, double deltaTime);
     double calculatePeriodOfTime(timeval startTime);
-    bool logVisionProcessStep(int frameNum,double timeStep, bool isFrameDone, bool isFrameNum);
+    bool logVisionProcessStep(int frameNum,double timeStep, bool isFullStepDone, bool isFrameNum);
     bool logVisionPosition(int frameNum,LaneInfo primarylane, std::string strPos, std::string navCMD,float curvedRatio, float angleHeading, float angleOfRoad, double deltaTime,float velocityX,float velocityY);
     void setLaneType(LaneType lane);
    

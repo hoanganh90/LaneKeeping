@@ -176,7 +176,7 @@ top (int argc, char **argv)
         }
         else 
         {
-            fprintf(visionProcessFile, "Frame       AdaptiveROI     LineDetection       Processing     SendCMD\n");
+            fprintf(visionProcessFile, "Frame       PreProcessing       AdaptiveROI     LineDetection       Processing     SendCMD\n");
         }
         //Create Vision Position file
          struct stat st_position_data = {0};
